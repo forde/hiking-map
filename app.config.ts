@@ -43,7 +43,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: './assets/favicon.png',
   },
-  plugins: ['expo-router', '@maplibre/maplibre-react-native'],
+  plugins: [
+    'expo-router',
+    '@maplibre/maplibre-react-native',
+    [
+      'expo-location',
+      {
+        locationAlwaysAndWhenInUsePermission:
+          'HikeMap needs background location access to record your hiking tracks.',
+        locationWhenInUsePermission:
+          'HikeMap needs your location to show your position on the map.',
+      },
+    ],
+  ],
   scheme: 'hikemap',
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
