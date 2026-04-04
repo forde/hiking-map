@@ -1,19 +1,70 @@
-import React, { useRef, useCallback, useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
+import { StyleSheet, View, useColorScheme } from 'react-native';
 import {
   MapView as MLMapView,
   Camera,
   UserLocation,
-  setConnected,
   type MapViewRef,
   type CameraRef,
-} from "@maplibre/maplibre-react-native";
-import { IconButton } from "react-native-paper";
-import { useMapStore } from "../../stores/mapStore";
-import { useLocation } from "../../hooks/useLocation";
+} from '@maplibre/maplibre-react-native';
+import { IconButton } from 'react-native-paper';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useMapStore } from '../../stores/mapStore';
+import { useLocation } from '../../hooks/useLocation';
+import { HIKING_TRAILS_OVERLAY } from '../../constants/mapSources';
+import { buildHikingStyle } from '../../constants/hikingStyle';
+import MapSourcePicker from './MapSourcePicker';
+import ScaleBar from './ScaleBar';
 
-// Call once at module level, not in render
-setConnected(true);
+const hasGlass = isLiquidGlassAvailable();
+
+/** Build an inline raster style for XYZ tile sources. */
+function buildRasterStyle(
+  url: string,
+  tileSize: number,
+  maxZoom: number,
+  attribution: string,
+  showHikingOverlay: boolean,
+) {
+  const sources: Record<string, unknown> = {
+    'base-tiles': {
+      type: 'raster' as const,
+      tiles: [url],
+      tileSize,
+      maxzoom: maxZoom,
+      attribution,
+    },
+  };
+
+  const layers: unknown[] = [
+    {
+      id: 'base-layer',
+      type: 'raster' as const,
+      source: 'base-tiles',
+      minzoom: 0,
+      maxzoom: maxZoom,
+    },
+  ];
+
+  if (showHikingOverlay) {
+    sources['hiking-overlay'] = {
+      type: 'raster' as const,
+      tiles: [HIKING_TRAILS_OVERLAY.url],
+      tileSize: HIKING_TRAILS_OVERLAY.tileSize,
+      maxzoom: HIKING_TRAILS_OVERLAY.maxZoom,
+      attribution: HIKING_TRAILS_OVERLAY.attribution,
+    };
+    layers.push({
+      id: 'hiking-trails-layer',
+      type: 'raster' as const,
+      source: 'hiking-overlay',
+      minzoom: 0,
+      maxzoom: HIKING_TRAILS_OVERLAY.maxZoom,
+    });
+  }
+
+  return { version: 8 as const, sources, layers };
+}
 
 export default function HikeMapView() {
   const mapRef = useRef<MapViewRef>(null);
@@ -24,9 +75,13 @@ export default function HikeMapView() {
     mapSource,
     followUser,
     headingEnabled,
+    showHikingOverlay,
     setFollowUser,
     setCenter,
+    setZoom,
+    setMapSource,
     toggleHeading,
+    toggleHikingOverlay,
   } = useMapStore();
   const {
     coordinates,
@@ -35,7 +90,13 @@ export default function HikeMapView() {
     requestPermissionAndLocate,
     startWatching,
   } = useLocation();
+  const isDark = useColorScheme() === 'dark';
   const [initialLocationSet, setInitialLocationSet] = useState(false);
+  const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
+
+  // Track current map center latitude and zoom for the scale bar
+  const [displayLatitude, setDisplayLatitude] = useState(center[1]);
+  const [displayZoom, setDisplayZoom] = useState(zoom);
 
   // On first map load, lazily request location and center on user
   const handleMapReady = useCallback(async () => {
@@ -110,7 +171,9 @@ export default function HikeMapView() {
 
   // Disable follow mode when user manually pans the map
   const handleRegionWillChange = useCallback(
-    (feature: GeoJSON.Feature<GeoJSON.Point, { isUserInteraction: boolean }>) => {
+    (
+      feature: GeoJSON.Feature<GeoJSON.Point, { isUserInteraction: boolean }>,
+    ) => {
       if (feature.properties?.isUserInteraction && followUser) {
         setFollowUser(false);
       }
@@ -118,38 +181,45 @@ export default function HikeMapView() {
     [followUser, setFollowUser],
   );
 
-  const mapStyle = {
-    version: 8 as const,
-    sources: {
-      "raster-tiles": {
-        type: "raster" as const,
-        tiles: [mapSource.url],
-        tileSize: mapSource.tileSize,
-        attribution: mapSource.attribution,
-      },
+  // Update scale bar values when region changes
+  const handleRegionDidChange = useCallback(
+    (feature: GeoJSON.Feature<GeoJSON.Point, { zoomLevel?: number }>) => {
+      const coords = feature.geometry?.coordinates;
+      if (coords && coords.length >= 2) {
+        setDisplayLatitude(coords[1]);
+      }
+      if (feature.properties?.zoomLevel != null) {
+        setDisplayZoom(feature.properties.zoomLevel);
+      }
     },
-    layers: [
-      {
-        id: "raster-layer",
-        type: "raster" as const,
-        source: "raster-tiles",
-        minzoom: 0,
-        maxzoom: 19,
-      },
-    ],
-  };
+    [],
+  );
+
+  const mapStyle = useMemo(() => {
+    if (mapSource.type === 'vector') {
+      return buildHikingStyle(mapSource.url, { showHikingOverlay });
+    }
+    return buildRasterStyle(
+      mapSource.url,
+      mapSource.tileSize,
+      mapSource.maxZoom,
+      mapSource.attribution,
+      showHikingOverlay,
+    );
+  }, [mapSource, showHikingOverlay]);
 
   return (
     <View style={styles.container}>
       <MLMapView
         ref={mapRef}
         style={styles.map}
-        mapStyle={JSON.stringify(mapStyle)}
+        mapStyle={mapStyle}
         logoEnabled={false}
         attributionEnabled={true}
         attributionPosition={{ bottom: 8, left: 8 }}
         onDidFinishLoadingMap={handleMapReady}
         onRegionWillChange={handleRegionWillChange}
+        onRegionDidChange={handleRegionDidChange}
       >
         <Camera
           ref={cameraRef}
@@ -167,29 +237,93 @@ export default function HikeMapView() {
         )}
       </MLMapView>
 
+      <ScaleBar latitude={displayLatitude} zoom={displayZoom} />
+
       {/* FAB area — bottom right */}
       <View style={styles.fabContainer}>
-        {/* Compass lock / heading toggle */}
-        <IconButton
-          icon={headingEnabled ? "compass" : "compass-off"}
-          mode="contained"
-          size={22}
-          onPress={toggleHeading}
-          style={styles.fab}
-          iconColor="#2E7D32"
-          containerColor="white"
-        />
-        {/* Center on me */}
-        <IconButton
-          icon={followUser ? "crosshairs-gps" : "crosshairs"}
-          mode="contained"
-          size={22}
-          onPress={handleCenterOnMe}
-          style={styles.fab}
-          iconColor="#2E7D32"
-          containerColor="white"
-        />
+        {hasGlass ? (
+          <>
+            <GlassView style={styles.glassFab} isInteractive>
+              <IconButton
+                icon="layers"
+                size={22}
+                onPress={() => setSourcePickerVisible(true)}
+                iconColor={isDark ? '#81C784' : '#2E7D32'}
+              />
+            </GlassView>
+            <GlassView style={styles.glassFab} isInteractive>
+              <IconButton
+                icon="walk"
+                size={22}
+                onPress={toggleHikingOverlay}
+                iconColor={showHikingOverlay ? (isDark ? '#81C784' : '#2E7D32') : '#999'}
+              />
+            </GlassView>
+            <GlassView style={styles.glassFab} isInteractive>
+              <IconButton
+                icon={headingEnabled ? 'compass' : 'compass-off'}
+                size={22}
+                onPress={toggleHeading}
+                iconColor={isDark ? '#81C784' : '#2E7D32'}
+              />
+            </GlassView>
+            <GlassView style={styles.glassFab} isInteractive>
+              <IconButton
+                icon={followUser ? 'crosshairs-gps' : 'crosshairs'}
+                size={22}
+                onPress={handleCenterOnMe}
+                iconColor={isDark ? '#81C784' : '#2E7D32'}
+              />
+            </GlassView>
+          </>
+        ) : (
+          <>
+            <IconButton
+              icon="layers"
+              mode="contained"
+              size={22}
+              onPress={() => setSourcePickerVisible(true)}
+              style={styles.fab}
+              iconColor={isDark ? '#81C784' : '#2E7D32'}
+              containerColor={isDark ? '#2a2a2a' : 'white'}
+            />
+            <IconButton
+              icon="walk"
+              mode="contained"
+              size={22}
+              onPress={toggleHikingOverlay}
+              style={styles.fab}
+              iconColor={showHikingOverlay ? (isDark ? '#81C784' : '#2E7D32') : '#999'}
+              containerColor={isDark ? '#2a2a2a' : 'white'}
+            />
+            <IconButton
+              icon={headingEnabled ? 'compass' : 'compass-off'}
+              mode="contained"
+              size={22}
+              onPress={toggleHeading}
+              style={styles.fab}
+              iconColor={isDark ? '#81C784' : '#2E7D32'}
+              containerColor={isDark ? '#2a2a2a' : 'white'}
+            />
+            <IconButton
+              icon={followUser ? 'crosshairs-gps' : 'crosshairs'}
+              mode="contained"
+              size={22}
+              onPress={handleCenterOnMe}
+              style={styles.fab}
+              iconColor={isDark ? '#81C784' : '#2E7D32'}
+              containerColor={isDark ? '#2a2a2a' : 'white'}
+            />
+          </>
+        )}
       </View>
+
+      <MapSourcePicker
+        visible={sourcePickerVisible}
+        selected={mapSource}
+        onSelect={setMapSource}
+        onDismiss={() => setSourcePickerVisible(false)}
+      />
     </View>
   );
 }
@@ -202,17 +336,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fabContainer: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 100,
     right: 16,
     gap: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   fab: {
     elevation: 4,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  glassFab: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    overflow: 'hidden' as const,
   },
 });
