@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useCallback, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 import {
   MapView as MLMapView,
@@ -15,6 +15,7 @@ import { HIKING_TRAILS_OVERLAY } from '../../constants/mapSources';
 import { buildHikingStyle } from '../../constants/hikingStyle';
 import MapSourcePicker from './MapSourcePicker';
 import ScaleBar from './ScaleBar';
+import SearchPin from '../search/SearchPin';
 
 const hasGlass = isLiquidGlassAvailable();
 
@@ -66,7 +67,18 @@ function buildRasterStyle(
   return { version: 8 as const, sources, layers };
 }
 
-export default function HikeMapView() {
+export interface MapViewHandle {
+  flyTo: (coordinate: [number, number], zoom?: number) => void;
+}
+
+interface MapViewProps {
+  searchPin?: { coordinate: [number, number]; name: string } | null;
+}
+
+export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
+  { searchPin },
+  ref,
+) {
   const mapRef = useRef<MapViewRef>(null);
   const cameraRef = useRef<CameraRef>(null);
   const {
@@ -93,6 +105,16 @@ export default function HikeMapView() {
   const isDark = useColorScheme() === 'dark';
   const [initialLocationSet, setInitialLocationSet] = useState(false);
   const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    flyTo: (coordinate: [number, number], zoom = 14) => {
+      cameraRef.current?.setCamera({
+        centerCoordinate: coordinate,
+        zoomLevel: zoom,
+        animationDuration: 1000,
+      });
+    },
+  }));
 
   // Track current map center latitude and zoom for the scale bar
   const [displayLatitude, setDisplayLatitude] = useState(center[1]);
@@ -235,6 +257,12 @@ export default function HikeMapView() {
             showsUserHeadingIndicator={headingEnabled}
           />
         )}
+        {searchPin && (
+          <SearchPin
+            coordinate={searchPin.coordinate}
+            name={searchPin.name}
+          />
+        )}
       </MLMapView>
 
       <ScaleBar latitude={displayLatitude} zoom={displayZoom} />
@@ -326,7 +354,7 @@ export default function HikeMapView() {
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
