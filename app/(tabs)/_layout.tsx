@@ -8,7 +8,7 @@ export default function TabLayout() {
     <NativeTabs
       iconColor={{
         default: colorScheme === "dark" ? "#888" : "#666",
-        selected: colorScheme === "dark" ? "#81C784" : "#2E7D32",
+        selected: "#E53935",
       }}
     >
       <NativeTabs.Trigger name="index" options={{ title: "Map" }}>

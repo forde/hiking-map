@@ -16,6 +16,10 @@ import { buildHikingStyle } from '../../constants/hikingStyle';
 import MapSourcePicker from './MapSourcePicker';
 import ScaleBar from './ScaleBar';
 import SearchPin from '../search/SearchPin';
+import RouteOverlay from '../route/RouteOverlay';
+import RouteInfoChip from '../route/RouteInfoChip';
+import WaypointPopup from '../route/WaypointPopup';
+import { useRouteStore } from '../../stores/routeStore';
 
 const hasGlass = isLiquidGlassAvailable();
 
@@ -217,6 +221,14 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
     [],
   );
 
+  const handleLongPress = useCallback(
+    (feature: GeoJSON.Feature<GeoJSON.Geometry>) => {
+      const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+      useRouteStore.getState().addWaypoint(coords);
+    },
+    [],
+  );
+
   const mapStyle = useMemo(() => {
     if (mapSource.type === 'vector') {
       return buildHikingStyle(mapSource.url, { showHikingOverlay });
@@ -242,6 +254,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
         onDidFinishLoadingMap={handleMapReady}
         onRegionWillChange={handleRegionWillChange}
         onRegionDidChange={handleRegionDidChange}
+        onLongPress={handleLongPress}
       >
         <Camera
           ref={cameraRef}
@@ -263,9 +276,13 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
             name={searchPin.name}
           />
         )}
+        <RouteOverlay />
       </MLMapView>
 
       <ScaleBar latitude={displayLatitude} zoom={displayZoom} />
+
+      <RouteInfoChip />
+      <WaypointPopup />
 
       {/* FAB area — bottom right */}
       <View style={styles.fabContainer}>
@@ -276,7 +293,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon="layers"
                 size={22}
                 onPress={() => setSourcePickerVisible(true)}
-                iconColor={isDark ? '#81C784' : '#2E7D32'}
+                iconColor={'#E53935'}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
@@ -284,7 +301,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon="walk"
                 size={22}
                 onPress={toggleHikingOverlay}
-                iconColor={showHikingOverlay ? (isDark ? '#81C784' : '#2E7D32') : '#999'}
+                iconColor={showHikingOverlay ? ('#E53935') : '#999'}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
@@ -292,7 +309,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon={headingEnabled ? 'compass' : 'compass-off'}
                 size={22}
                 onPress={toggleHeading}
-                iconColor={isDark ? '#81C784' : '#2E7D32'}
+                iconColor={'#E53935'}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
@@ -300,7 +317,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon={followUser ? 'crosshairs-gps' : 'crosshairs'}
                 size={22}
                 onPress={handleCenterOnMe}
-                iconColor={isDark ? '#81C784' : '#2E7D32'}
+                iconColor={'#E53935'}
               />
             </GlassView>
           </>
@@ -312,7 +329,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={() => setSourcePickerVisible(true)}
               style={styles.fab}
-              iconColor={isDark ? '#81C784' : '#2E7D32'}
+              iconColor={'#E53935'}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
             <IconButton
@@ -321,7 +338,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={toggleHikingOverlay}
               style={styles.fab}
-              iconColor={showHikingOverlay ? (isDark ? '#81C784' : '#2E7D32') : '#999'}
+              iconColor={showHikingOverlay ? ('#E53935') : '#999'}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
             <IconButton
@@ -330,7 +347,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={toggleHeading}
               style={styles.fab}
-              iconColor={isDark ? '#81C784' : '#2E7D32'}
+              iconColor={'#E53935'}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
             <IconButton
@@ -339,7 +356,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={handleCenterOnMe}
               style={styles.fab}
-              iconColor={isDark ? '#81C784' : '#2E7D32'}
+              iconColor={'#E53935'}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
           </>

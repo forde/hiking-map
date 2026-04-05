@@ -4,12 +4,14 @@ import MapView, { type MapViewHandle } from '../../components/map/MapView';
 import SearchBar from '../../components/search/SearchBar';
 import SearchSuggestions from '../../components/search/SearchSuggestions';
 import { useSearch } from '../../hooks/useSearch';
+import { useRouting } from '../../hooks/useRouting';
 import { useMapStore } from '../../stores/mapStore';
 
 export default function MapScreen() {
   const mapViewRef = useRef<MapViewHandle>(null);
   const { selectedResult, isFocused, isLoading, results, setFocused } =
     useSearch();
+  useRouting();
 
   const showSuggestions = isFocused || isLoading || results.length > 0;
 
