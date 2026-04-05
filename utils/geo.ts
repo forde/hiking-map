@@ -42,6 +42,16 @@ export function elevationStats(profile: number[]): {
   return { gainM, lossM };
 }
 
+export function distancesAlongPolyline(
+  polyline: [number, number][],
+): number[] {
+  const distances = [0];
+  for (let i = 1; i < polyline.length; i++) {
+    distances.push(distances[i - 1] + haversineDistance(polyline[i - 1], polyline[i]));
+  }
+  return distances;
+}
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}min`;
   const h = Math.floor(minutes / 60);

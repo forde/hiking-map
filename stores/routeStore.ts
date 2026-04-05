@@ -30,6 +30,7 @@ export interface Route {
 
 export interface RouteResult {
   polyline: [number, number][];
+  elevationProfile: number[];
   distanceKm: number;
   elevationGainM: number;
   elevationLossM: number;
@@ -49,6 +50,7 @@ interface RouteState {
   isRouting: boolean;
   routingError: string | null;
   activeWaypointId: string | null;
+  scrubIndex: number | null;
 
   addWaypoint: (coordinate: [number, number]) => void;
   removeWaypoint: (id: string) => void;
@@ -58,6 +60,7 @@ interface RouteState {
   setRouteResult: (result: RouteResult) => void;
   setIsRouting: (routing: boolean) => void;
   setRoutingError: (error: string | null) => void;
+  setScrubIndex: (index: number | null) => void;
   clearRoute: () => void;
 }
 
@@ -73,6 +76,7 @@ const initialState = {
   isRouting: false,
   routingError: null as string | null,
   activeWaypointId: null as string | null,
+  scrubIndex: null as number | null,
 };
 
 export const useRouteStore = create<RouteState>((set) => ({
@@ -104,6 +108,8 @@ export const useRouteStore = create<RouteState>((set) => ({
         return {
           waypoints,
           polyline: [],
+          elevationProfile: [],
+          scrubIndex: null,
           distanceKm: 0,
           elevationGainM: 0,
           elevationLossM: 0,
@@ -134,6 +140,7 @@ export const useRouteStore = create<RouteState>((set) => ({
   setRouteResult: (result) =>
     set({
       polyline: result.polyline,
+      elevationProfile: result.elevationProfile,
       distanceKm: result.distanceKm,
       elevationGainM: result.elevationGainM,
       elevationLossM: result.elevationLossM,
@@ -145,6 +152,8 @@ export const useRouteStore = create<RouteState>((set) => ({
   setIsRouting: (isRouting) => set({ isRouting }),
 
   setRoutingError: (routingError) => set({ routingError }),
+
+  setScrubIndex: (scrubIndex) => set({ scrubIndex }),
 
   clearRoute: () => set(initialState),
 }));

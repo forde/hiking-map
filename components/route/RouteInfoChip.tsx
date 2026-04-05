@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { StyleSheet, View, Text, Pressable, useColorScheme } from "react-native";
+import { StyleSheet, View, Text, Pressable, useColorScheme, type LayoutChangeEvent } from "react-native";
 import { Portal, Dialog, Button } from "react-native-paper";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,7 +26,11 @@ const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   demanding: "Demanding",
 };
 
-export default function RouteInfoChip() {
+interface RouteInfoChipProps {
+  onHeightChange?: (height: number) => void;
+}
+
+export default function RouteInfoChip({ onHeightChange }: RouteInfoChipProps) {
   const waypoints = useRouteStore((s) => s.waypoints);
   const polyline = useRouteStore((s) => s.polyline);
   const distanceKm = useRouteStore((s) => s.distanceKm);
@@ -78,7 +82,20 @@ export default function RouteInfoChip() {
     setConfirmVisible(false);
   }, []);
 
-  if (waypoints.length < 2 || !difficulty) return null;
+  const handleLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      onHeightChange?.(e.nativeEvent.layout.height);
+    },
+    [onHeightChange],
+  );
+
+  const isVisible = waypoints.length >= 2 && !!difficulty;
+
+  React.useEffect(() => {
+    if (!isVisible) onHeightChange?.(0);
+  }, [isVisible, onHeightChange]);
+
+  if (!isVisible) return null;
 
   const textColor = isDark ? "#fff" : "#1a1a1a";
   const subtextColor = isDark ? "#ccc" : "#555";
@@ -149,7 +166,7 @@ export default function RouteInfoChip() {
   if (hasGlass) {
     return (
       <>
-        <GlassView style={[styles.chip, positionStyle]}>{content}</GlassView>
+        <GlassView style={[styles.chip, positionStyle]} onLayout={handleLayout}>{content}</GlassView>
         {confirmDialog}
       </>
     );
@@ -158,6 +175,7 @@ export default function RouteInfoChip() {
   return (
     <>
       <View
+        onLayout={handleLayout}
         style={[
           styles.chip,
           positionStyle,

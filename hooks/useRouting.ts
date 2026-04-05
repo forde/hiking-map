@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useRouteStore } from '../stores/routeStore';
 import { fetchORSRoute } from '../services/ors';
 import { calculateDifficulty } from '../utils/difficulty';
-import { polylineDistanceKm } from '../utils/geo';
+import { polylineDistanceKm, elevationStats } from '../utils/geo';
 
 const DEBOUNCE_MS = 800;
 
@@ -13,6 +13,7 @@ function segmentKey(a: [number, number], b: [number, number]): string {
 
 interface CachedSegment {
   polyline: [number, number][];
+  elevationProfile: number[];
   isFallback: boolean;
 }
 
@@ -36,6 +37,7 @@ export function useRouting(): void {
     // Clear stale polyline immediately so the old path doesn't linger
     store.setRouteResult({
       polyline: [],
+      elevationProfile: [],
       distanceKm: 0,
       elevationGainM: 0,
       elevationLossM: 0,
@@ -64,9 +66,13 @@ export function useRouting(): void {
             key,
             fetchORSRoute(pair).then((result): CachedSegment => {
               if (result) {
-                return { polyline: result.polyline, isFallback: false };
+                return {
+                  polyline: result.polyline,
+                  elevationProfile: result.elevationProfile,
+                  isFallback: false,
+                };
               }
-              return { polyline: pair, isFallback: true };
+              return { polyline: pair, elevationProfile: [], isFallback: true };
             }),
           );
         }
@@ -92,6 +98,7 @@ export function useRouting(): void {
 
       // Stitch segments from cache
       const fullPolyline: [number, number][] = [];
+      const fullElevation: number[] = [];
       let hasFallback = false;
 
       for (const key of keys) {
@@ -101,17 +108,22 @@ export function useRouting(): void {
         for (let j = start; j < segment.polyline.length; j++) {
           fullPolyline.push(segment.polyline[j]);
         }
+        for (let j = start; j < segment.elevationProfile.length; j++) {
+          fullElevation.push(segment.elevationProfile[j]);
+        }
       }
 
       const distanceKm = polylineDistanceKm(fullPolyline);
-      const { timeMin, difficulty } = calculateDifficulty(distanceKm, 0);
+      const { gainM, lossM } = elevationStats(fullElevation);
+      const { timeMin, difficulty } = calculateDifficulty(distanceKm, gainM);
 
       const state = useRouteStore.getState();
       state.setRouteResult({
         polyline: fullPolyline,
+        elevationProfile: fullElevation,
         distanceKm,
-        elevationGainM: 0,
-        elevationLossM: 0,
+        elevationGainM: gainM,
+        elevationLossM: lossM,
         estimatedTimeMin: timeMin,
         difficulty,
       });

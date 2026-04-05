@@ -6,6 +6,7 @@ import SearchSuggestions from '../../components/search/SearchSuggestions';
 import { useSearch } from '../../hooks/useSearch';
 import { useRouting } from '../../hooks/useRouting';
 import { useMapStore } from '../../stores/mapStore';
+import { useSearchStore } from '../../stores/searchStore';
 
 export default function MapScreen() {
   const mapViewRef = useRef<MapViewHandle>(null);
@@ -34,6 +35,7 @@ export default function MapScreen() {
 
   const handleDismissSearch = () => {
     setFocused(false);
+    useSearchStore.getState().setResults([]);
     Keyboard.dismiss();
   };
 

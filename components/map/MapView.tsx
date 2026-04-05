@@ -1,26 +1,36 @@
-import React, { useRef, useCallback, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { StyleSheet, View, useColorScheme } from 'react-native';
+import React, {
+  useRef,
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { StyleSheet, View, useColorScheme } from "react-native";
 import {
   MapView as MLMapView,
   Camera,
   UserLocation,
   type MapViewRef,
   type CameraRef,
-} from '@maplibre/maplibre-react-native';
-import { IconButton } from 'react-native-paper';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useMapStore } from '../../stores/mapStore';
-import { useLocation } from '../../hooks/useLocation';
-import { HIKING_TRAILS_OVERLAY } from '../../constants/mapSources';
-import { buildHikingStyle } from '../../constants/hikingStyle';
-import MapSourcePicker from './MapSourcePicker';
-import ScaleBar from './ScaleBar';
-import SearchPin from '../search/SearchPin';
-import RouteOverlay from '../route/RouteOverlay';
-import RouteInfoChip from '../route/RouteInfoChip';
-import WaypointPopup from '../route/WaypointPopup';
-import { useRouteStore } from '../../stores/routeStore';
-import { AppTheme } from '../../constants/appTheme';
+} from "@maplibre/maplibre-react-native";
+import { IconButton } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { useMapStore } from "../../stores/mapStore";
+import { useLocation } from "../../hooks/useLocation";
+import { HIKING_TRAILS_OVERLAY } from "../../constants/mapSources";
+import { buildHikingStyle } from "../../constants/hikingStyle";
+import MapSourcePicker from "./MapSourcePicker";
+import ScaleBar from "./ScaleBar";
+import SearchPin from "../search/SearchPin";
+import RouteOverlay from "../route/RouteOverlay";
+import RouteInfoChip from "../route/RouteInfoChip";
+import WaypointPopup from "../route/WaypointPopup";
+import ElevationPanel from "../route/ElevationPanel";
+import { useRouteStore } from "../../stores/routeStore";
+import { AppTheme } from "../../constants/appTheme";
 
 const hasGlass = isLiquidGlassAvailable();
 
@@ -33,8 +43,8 @@ function buildRasterStyle(
   showHikingOverlay: boolean,
 ) {
   const sources: Record<string, unknown> = {
-    'base-tiles': {
-      type: 'raster' as const,
+    "base-tiles": {
+      type: "raster" as const,
       tiles: [url],
       tileSize,
       maxzoom: maxZoom,
@@ -44,26 +54,26 @@ function buildRasterStyle(
 
   const layers: unknown[] = [
     {
-      id: 'base-layer',
-      type: 'raster' as const,
-      source: 'base-tiles',
+      id: "base-layer",
+      type: "raster" as const,
+      source: "base-tiles",
       minzoom: 0,
       maxzoom: maxZoom,
     },
   ];
 
   if (showHikingOverlay) {
-    sources['hiking-overlay'] = {
-      type: 'raster' as const,
+    sources["hiking-overlay"] = {
+      type: "raster" as const,
       tiles: [HIKING_TRAILS_OVERLAY.url],
       tileSize: HIKING_TRAILS_OVERLAY.tileSize,
       maxzoom: HIKING_TRAILS_OVERLAY.maxZoom,
       attribution: HIKING_TRAILS_OVERLAY.attribution,
     };
     layers.push({
-      id: 'hiking-trails-layer',
-      type: 'raster' as const,
-      source: 'hiking-overlay',
+      id: "hiking-trails-layer",
+      type: "raster" as const,
+      source: "hiking-overlay",
       minzoom: 0,
       maxzoom: HIKING_TRAILS_OVERLAY.maxZoom,
     });
@@ -107,9 +117,22 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
     requestPermissionAndLocate,
     startWatching,
   } = useLocation();
-  const isDark = useColorScheme() === 'dark';
+  const isDark = useColorScheme() === "dark";
   const [initialLocationSet, setInitialLocationSet] = useState(false);
   const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
+  const [elevationPanelOpen, setElevationPanelOpen] = useState(false);
+  const hasElevation = useRouteStore((s) => s.elevationProfile.length >= 2);
+  const insets = useSafeAreaInsets();
+  // Match RouteInfoChip positioning: search bar top + height + gap
+  const chipTop = insets.top + 8 + 48 + 8;
+  const [chipHeight, setChipHeight] = useState(0);
+  const elevationPanelTop = chipHeight > 0 ? chipTop + chipHeight + 8 : chipTop;
+
+  // Close elevation panel only when route is fully cleared (no waypoints)
+  const waypointCount = useRouteStore((s) => s.waypoints.length);
+  useEffect(() => {
+    if (waypointCount < 2) setElevationPanelOpen(false);
+  }, [waypointCount]);
 
   useImperativeHandle(ref, () => ({
     flyTo: (coordinate: [number, number], zoom = 14) => {
@@ -224,14 +247,17 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
 
   const handleLongPress = useCallback(
     (feature: GeoJSON.Feature<GeoJSON.Geometry>) => {
-      const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+      const coords = (feature.geometry as GeoJSON.Point).coordinates as [
+        number,
+        number,
+      ];
       useRouteStore.getState().addWaypoint(coords);
     },
     [],
   );
 
   const mapStyle = useMemo(() => {
-    if (mapSource.type === 'vector') {
+    if (mapSource.type === "vector") {
       return buildHikingStyle(mapSource.url, { showHikingOverlay });
     }
     return buildRasterStyle(
@@ -272,93 +298,124 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
           />
         )}
         {searchPin && (
-          <SearchPin
-            coordinate={searchPin.coordinate}
-            name={searchPin.name}
-          />
+          <SearchPin coordinate={searchPin.coordinate} name={searchPin.name} />
         )}
         <RouteOverlay />
       </MLMapView>
 
       <ScaleBar latitude={displayLatitude} zoom={displayZoom} />
 
-      <RouteInfoChip />
+      <RouteInfoChip onHeightChange={setChipHeight} />
       <WaypointPopup />
+
+      <ElevationPanel
+        visible={elevationPanelOpen}
+        top={elevationPanelTop}
+      />
 
       {/* FAB area — bottom right */}
       <View style={styles.fabContainer}>
         {hasGlass ? (
           <>
+            {hasElevation && (
+              <GlassView style={styles.glassFab} isInteractive>
+                <IconButton
+                  icon='trending-up'
+                  size={22}
+                  onPress={() => setElevationPanelOpen((v) => !v)}
+                  iconColor={
+                    elevationPanelOpen ? AppTheme.black : AppTheme.mutedColor
+                  }
+                />
+              </GlassView>
+            )}
             <GlassView style={styles.glassFab} isInteractive>
               <IconButton
-                icon="layers"
+                icon='layers'
                 size={22}
                 onPress={() => setSourcePickerVisible(true)}
-                iconColor={AppTheme.accentColor}
+                iconColor={AppTheme.black}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
               <IconButton
-                icon="walk"
+                icon='walk'
                 size={22}
                 onPress={toggleHikingOverlay}
-                iconColor={showHikingOverlay ? AppTheme.accentColor : AppTheme.mutedColor}
+                iconColor={
+                  showHikingOverlay ? AppTheme.black : AppTheme.mutedColor
+                }
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
               <IconButton
-                icon={headingEnabled ? 'compass' : 'compass-off'}
+                icon={headingEnabled ? "compass" : "compass-off"}
                 size={22}
                 onPress={toggleHeading}
-                iconColor={AppTheme.accentColor}
+                iconColor={AppTheme.black}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
               <IconButton
-                icon={followUser ? 'crosshairs-gps' : 'crosshairs'}
+                icon={followUser ? "crosshairs-gps" : "crosshairs"}
                 size={22}
                 onPress={handleCenterOnMe}
-                iconColor={AppTheme.accentColor}
+                iconColor={AppTheme.black}
               />
             </GlassView>
           </>
         ) : (
           <>
+            {hasElevation && (
+              <IconButton
+                icon='trending-up'
+                mode='contained'
+                size={22}
+                onPress={() => setElevationPanelOpen((v) => !v)}
+                style={styles.fab}
+                iconColor={
+                  elevationPanelOpen ? AppTheme.black : AppTheme.mutedColor
+                }
+                containerColor={isDark ? "#2a2a2a" : "white"}
+              />
+            )}
             <IconButton
-              icon="layers"
-              mode="contained"
+              icon='layers'
+              mode='contained'
               size={22}
               onPress={() => setSourcePickerVisible(true)}
               style={styles.fab}
-              iconColor={AppTheme.accentColor}
-              containerColor={isDark ? '#2a2a2a' : 'white'}
+              iconColor={AppTheme.black}
+              containerColor={isDark ? "#2a2a2a" : "white"}
             />
             <IconButton
-              icon="walk"
-              mode="contained"
+              icon='walk'
+              mode='contained'
               size={22}
               onPress={toggleHikingOverlay}
               style={styles.fab}
-              iconColor={showHikingOverlay ? AppTheme.accentColor : AppTheme.mutedColor}
-              containerColor={isDark ? '#2a2a2a' : 'white'}
+              iconColor={
+                showHikingOverlay ? AppTheme.black : AppTheme.mutedColor
+              }
+              containerColor={isDark ? "#2a2a2a" : "white"}
             />
             <IconButton
-              icon={headingEnabled ? 'compass' : 'compass-off'}
-              mode="contained"
+              icon={headingEnabled ? "compass" : "compass-off"}
+              mode='contained'
               size={22}
               onPress={toggleHeading}
               style={styles.fab}
-              iconColor={AppTheme.accentColor}
-              containerColor={isDark ? '#2a2a2a' : 'white'}
+              iconColor={AppTheme.black}
+              containerColor={isDark ? "#2a2a2a" : "white"}
             />
             <IconButton
-              icon={followUser ? 'crosshairs-gps' : 'crosshairs'}
-              mode="contained"
+              icon={followUser ? "crosshairs-gps" : "crosshairs"}
+              mode='contained'
               size={22}
               onPress={handleCenterOnMe}
               style={styles.fab}
-              iconColor={AppTheme.accentColor}
-              containerColor={isDark ? '#2a2a2a' : 'white'}
+              iconColor={AppTheme.black}
+              containerColor={isDark ? "#2a2a2a" : "white"}
             />
           </>
         )}
@@ -382,15 +439,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fabContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 100,
     right: 16,
     gap: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   fab: {
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -399,8 +456,8 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    overflow: 'hidden' as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    overflow: "hidden" as const,
   },
 });

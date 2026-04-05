@@ -7,6 +7,7 @@ export interface ORSRouteResult {
   polyline: [number, number][]; // [lng, lat][]
   distanceKm: number;
   timeSeconds: number;
+  elevationProfile: number[]; // elevation in meters per coordinate
 }
 
 export async function fetchORSRoute(
@@ -27,6 +28,7 @@ export async function fetchORSRoute(
       body: JSON.stringify({
         coordinates,
         radiuses: coordinates.map(() => 350),
+        elevation: true,
       }),
       signal: controller.signal,
     });
@@ -41,14 +43,26 @@ export async function fetchORSRoute(
     const feature = data?.features?.[0];
     if (!feature?.geometry?.coordinates?.length) return null;
 
-    const polyline = feature.geometry.coordinates as [number, number][];
+    // ORS returns [lng, lat, elevation_m] triplets when elevation: true
+    const rawCoords = feature.geometry.coordinates as number[][];
+    const polyline: [number, number][] = rawCoords.map(
+      (c) => [c[0], c[1]] as [number, number],
+    );
+    const elevationProfile: number[] = rawCoords.map((c) => c[2] ?? 0);
     const summary = feature.properties?.summary;
 
     return {
       polyline,
       distanceKm: summary?.distance != null ? summary.distance / 1000 : 0,
       timeSeconds: summary?.duration ?? 0,
+      elevationProfile,
     };
+    // TODO Feature 8: when offline, elevation profile will be sampled
+    // from locally downloaded Terrain-RGB DEM tiles instead of ORS API.
+    // ORS elevation data is unavailable offline — elevationProfile will
+    // be empty when routing falls back to straight-line mode.
+    // ElevationPanel handles empty elevationProfile gracefully
+    // (FAB hidden when profile is empty).
   } catch {
     return null;
   } finally {

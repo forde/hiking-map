@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,7 +6,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text } from 'react-native-paper';
+import { Text, Portal, Dialog, Button } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import {
@@ -29,6 +29,8 @@ export default function WaypointPopup() {
   const insets = useSafeAreaInsets();
   const bottomOffset = insets.bottom + 60;
 
+  const [confirmVisible, setConfirmVisible] = useState(false);
+
   const waypoint = waypoints.find((w) => w.id === activeWaypointId);
 
   const handleTypeChange = useCallback(
@@ -41,10 +43,15 @@ export default function WaypointPopup() {
   );
 
   const handleRemove = useCallback(() => {
+    setConfirmVisible(true);
+  }, []);
+
+  const handleConfirmRemove = useCallback(() => {
     if (activeWaypointId) {
       useRouteStore.getState().removeWaypoint(activeWaypointId);
       useRouteStore.getState().setActiveWaypointId(null);
     }
+    setConfirmVisible(false);
   }, [activeWaypointId]);
 
   const handleDismiss = useCallback(() => {
@@ -120,6 +127,20 @@ export default function WaypointPopup() {
           {content}
         </View>
       )}
+      <Portal>
+        <Dialog visible={confirmVisible} onDismiss={() => setConfirmVisible(false)}>
+          <Dialog.Title>Remove waypoint?</Dialog.Title>
+          <Dialog.Content>
+            <Text style={{ color: isDark ? '#ccc' : '#333' }}>
+              This will remove waypoint {waypoints.indexOf(waypoint) + 1} from the route.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setConfirmVisible(false)}>Cancel</Button>
+            <Button onPress={handleConfirmRemove} textColor="#E53935">Remove</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </>
   );
 }

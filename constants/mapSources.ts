@@ -77,15 +77,6 @@ const RASTER_SOURCES: MapSource[] = [
         },
       ]
     : []),
-  {
-    id: 'mapy-cz',
-    name: 'Mapy.cz',
-    url: 'https://mapserver.mapy.cz/turist-m/{z}-{x}-{y}',
-    type: 'raster',
-    tileSize: 256,
-    maxZoom: 18,
-    attribution: '© Mapy.cz',
-  },
 ];
 
 /** All available sources — primary vector first (when configured), then raster fallbacks. */

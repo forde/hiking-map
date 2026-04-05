@@ -9,4 +9,6 @@ export const AppTheme = {
 
   /** Inactive/muted icon color */
   mutedColor: "#999",
+
+  black: "#000",
 } as const;
