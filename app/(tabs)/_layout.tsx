@@ -1,5 +1,6 @@
 import { useColorScheme } from "react-native";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
+import { AppTheme } from "../../constants/appTheme";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -8,7 +9,7 @@ export default function TabLayout() {
     <NativeTabs
       iconColor={{
         default: colorScheme === "dark" ? "#888" : "#666",
-        selected: "#E53935",
+        selected: AppTheme.accentColor,
       }}
     >
       <NativeTabs.Trigger name="index" options={{ title: "Map" }}>

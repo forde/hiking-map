@@ -20,6 +20,7 @@ import RouteOverlay from '../route/RouteOverlay';
 import RouteInfoChip from '../route/RouteInfoChip';
 import WaypointPopup from '../route/WaypointPopup';
 import { useRouteStore } from '../../stores/routeStore';
+import { AppTheme } from '../../constants/appTheme';
 
 const hasGlass = isLiquidGlassAvailable();
 
@@ -293,7 +294,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon="layers"
                 size={22}
                 onPress={() => setSourcePickerVisible(true)}
-                iconColor={'#E53935'}
+                iconColor={AppTheme.accentColor}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
@@ -301,7 +302,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon="walk"
                 size={22}
                 onPress={toggleHikingOverlay}
-                iconColor={showHikingOverlay ? ('#E53935') : '#999'}
+                iconColor={showHikingOverlay ? AppTheme.accentColor : AppTheme.mutedColor}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
@@ -309,7 +310,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon={headingEnabled ? 'compass' : 'compass-off'}
                 size={22}
                 onPress={toggleHeading}
-                iconColor={'#E53935'}
+                iconColor={AppTheme.accentColor}
               />
             </GlassView>
             <GlassView style={styles.glassFab} isInteractive>
@@ -317,7 +318,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
                 icon={followUser ? 'crosshairs-gps' : 'crosshairs'}
                 size={22}
                 onPress={handleCenterOnMe}
-                iconColor={'#E53935'}
+                iconColor={AppTheme.accentColor}
               />
             </GlassView>
           </>
@@ -329,7 +330,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={() => setSourcePickerVisible(true)}
               style={styles.fab}
-              iconColor={'#E53935'}
+              iconColor={AppTheme.accentColor}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
             <IconButton
@@ -338,7 +339,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={toggleHikingOverlay}
               style={styles.fab}
-              iconColor={showHikingOverlay ? ('#E53935') : '#999'}
+              iconColor={showHikingOverlay ? AppTheme.accentColor : AppTheme.mutedColor}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
             <IconButton
@@ -347,7 +348,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={toggleHeading}
               style={styles.fab}
-              iconColor={'#E53935'}
+              iconColor={AppTheme.accentColor}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
             <IconButton
@@ -356,7 +357,7 @@ export default forwardRef<MapViewHandle, MapViewProps>(function HikeMapView(
               size={22}
               onPress={handleCenterOnMe}
               style={styles.fab}
-              iconColor={'#E53935'}
+              iconColor={AppTheme.accentColor}
               containerColor={isDark ? '#2a2a2a' : 'white'}
             />
           </>
