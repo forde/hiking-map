@@ -17,6 +17,7 @@ import {
 const hasGlass = isLiquidGlassAvailable();
 
 const WAYPOINT_TYPES: { type: WaypointType; label: string; color: string }[] = [
+  { type: 'start', label: 'Start', color: '#2E7D32' },
   { type: 'regular', label: 'Regular', color: '#E53935' },
   { type: 'destination', label: 'Destination', color: '#1E88E5' },
 ];

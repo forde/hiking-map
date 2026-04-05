@@ -1,5 +1,7 @@
-import React, { useMemo } from "react";
-import { StyleSheet, View, Text, useColorScheme } from "react-native";
+import React, { useMemo, useState, useCallback } from "react";
+import { StyleSheet, View, Text, Pressable, useColorScheme } from "react-native";
+import { Portal, Dialog, Button } from "react-native-paper";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useRouteStore } from "../../stores/routeStore";
@@ -69,6 +71,13 @@ export default function RouteInfoChip() {
     };
   }, [waypoints, polyline]);
 
+  const [confirmVisible, setConfirmVisible] = useState(false);
+
+  const handleClearRoute = useCallback(() => {
+    useRouteStore.getState().clearRoute();
+    setConfirmVisible(false);
+  }, []);
+
   if (waypoints.length < 2 || !difficulty) return null;
 
   const textColor = isDark ? "#fff" : "#1a1a1a";
@@ -94,6 +103,13 @@ export default function RouteInfoChip() {
         <Text style={[styles.stats, { color: textColor }]}>
           {distanceKm.toFixed(1)} km / {formatDuration(estimatedTimeMin)}
         </Text>
+        <Pressable
+          onPress={() => setConfirmVisible(true)}
+          style={styles.clearButton}
+          hitSlop={8}
+        >
+          <Icon name="close-thick" size={18} color="#E53935" />
+        </Pressable>
       </View>
       {destinationInfo && (
         <Text style={[styles.destinationText, { color: subtextColor }]}>
@@ -111,29 +127,54 @@ export default function RouteInfoChip() {
 
   const positionStyle = { top: chipTop };
 
+  const confirmDialog = (
+    <Portal>
+      <Dialog visible={confirmVisible} onDismiss={() => setConfirmVisible(false)}>
+        <Dialog.Title>Clear route?</Dialog.Title>
+        <Dialog.Content>
+          <Text style={{ color: isDark ? "#ccc" : "#333" }}>
+            This will remove all waypoints and the route from the map.
+          </Text>
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={() => setConfirmVisible(false)}>Cancel</Button>
+          <Button onPress={handleClearRoute} textColor="#E53935">
+            Clear
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
+  );
+
   if (hasGlass) {
     return (
-      <GlassView style={[styles.chip, positionStyle]}>{content}</GlassView>
+      <>
+        <GlassView style={[styles.chip, positionStyle]}>{content}</GlassView>
+        {confirmDialog}
+      </>
     );
   }
 
   return (
-    <View
-      style={[
-        styles.chip,
-        positionStyle,
-        {
-          backgroundColor: isDark ? "#2a2a2a" : "white",
-          elevation: 4,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-        },
-      ]}
-    >
-      {content}
-    </View>
+    <>
+      <View
+        style={[
+          styles.chip,
+          positionStyle,
+          {
+            backgroundColor: isDark ? "#2a2a2a" : "white",
+            elevation: 4,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+          },
+        ]}
+      >
+        {content}
+      </View>
+      {confirmDialog}
+    </>
   );
 }
 
@@ -168,6 +209,14 @@ const styles = StyleSheet.create({
   stats: {
     fontSize: 14,
     fontWeight: "500",
+    flex: 1,
+  },
+  clearButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   destinationText: {
     fontSize: 14,

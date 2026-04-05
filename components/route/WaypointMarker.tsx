@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRouteStore, type Waypoint } from '../../stores/routeStore';
 
 const COLOR_MAP: Record<string, string> = {
+  start: '#2E7D32',
   regular: '#E53935',
   destination: '#1E88E5',
 };

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import * as Crypto from 'expo-crypto';
 import type { Difficulty } from '../utils/difficulty';
 
-export type WaypointType = 'regular' | 'destination';
+export type WaypointType = 'start' | 'regular' | 'destination';
 
 export interface Waypoint {
   id: string;
@@ -85,14 +85,21 @@ export const useRouteStore = create<RouteState>((set) => ({
         {
           id: Crypto.randomUUID(),
           coordinates: coordinate,
-          type: 'regular',
+          type: s.waypoints.length === 0 ? 'start' : 'regular',
         },
       ],
     })),
 
   removeWaypoint: (id) =>
     set((s) => {
-      const waypoints = s.waypoints.filter((w) => w.id !== id);
+      let waypoints = s.waypoints.filter((w) => w.id !== id);
+      // Ensure first waypoint is always 'start'
+      if (waypoints.length > 0 && !waypoints.some((w) => w.type === 'start')) {
+        waypoints = [
+          { ...waypoints[0], type: 'start' },
+          ...waypoints.slice(1),
+        ];
+      }
       if (waypoints.length < 2) {
         return {
           waypoints,

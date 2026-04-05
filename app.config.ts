@@ -60,7 +60,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-    valhallaUrl: process.env.EXPO_PUBLIC_VALHALLA_URL,
+    orsApiKey: process.env.EXPO_PUBLIC_ORS_API_KEY,
     protomapsR2Url: process.env.EXPO_PUBLIC_PROTOMAPS_R2_URL,
     shareBaseUrl: process.env.EXPO_PUBLIC_SHARE_BASE_URL,
     thunderforestApiKey: process.env.EXPO_PUBLIC_THUNDERFOREST_API_KEY,
